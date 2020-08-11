@@ -1,0 +1,15 @@
+__pycache__
+.pyc
+.pytest_cache
+.ipynb_checkpoints
+*.h
+*.c
+*.so
+.envrc
+*.retry
+.idea
+.vscode
+.DS_Store
+.mypy_cache
+.venv
+.coverage
