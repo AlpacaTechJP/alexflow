@@ -1,0 +1,12 @@
+luigi
+joblib
+dataclass-serializer
+multiprocess
+flake8
+black
+cached-property
+numpy
+pandas
+
+pytest
+pytest-cov

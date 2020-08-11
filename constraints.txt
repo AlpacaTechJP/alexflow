@@ -1,0 +1,4 @@
+luigi==2.8.9
+pandas<0.25.0
+numpy<=1.16.4
+dataclass-serializer>=1.3.1
