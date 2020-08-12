@@ -13,9 +13,7 @@ from cached_property import cached_property
 from dataclass_serializer import (
     Serializable,
     deserialize,
-    NoDefaultVar,
-    no_default,
-)  # noqa
+)
 
 from alexflow.misc import gjson
 
@@ -126,6 +124,7 @@ class AbstractTask(Serializable):
 @dataclass(frozen=True)
 class Task(AbstractTask):
     resource_spec: Optional[ResourceSpec] = field(default=None, repr=False)
+
     def run(self, input: InOut, output: InOut):
         """
         Args:

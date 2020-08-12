@@ -16,6 +16,7 @@ from .core import (
     JSONOutput,
     SerializableOutput,
     InOut,
-    no_default,
-    NoDefaultVar,
 )
+
+# Also imports no_default vars, as it is primary representation of Task.
+from dataclass_serializer import no_default, NoDefaultVar
