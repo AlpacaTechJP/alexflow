@@ -12,7 +12,7 @@ setup(
     author_email="yoshiso@alpaca.ai",
     url="https://github.com/AlpacaDB/alexflow.git",
     keywords="",
-    packages=find_packages(include=("alexflow",)),
+    packages=find_packages(exclude=('tests',)),
     install_requires=[
         "pandas",
         "numpy",
