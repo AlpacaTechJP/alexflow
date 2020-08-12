@@ -80,10 +80,8 @@ class ResourceManager:
             max_concurrency = self._resources[tag]
 
             next_concurrency = self._running.get(tag, 0) + 1
-            print("next", next_concurrency)
-            out.append(next_concurrency <= max_concurrency)
 
-        print(self._running, all(out))
+            out.append(next_concurrency <= max_concurrency)
 
         return all(out)
 
