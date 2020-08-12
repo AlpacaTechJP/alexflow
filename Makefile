@@ -1,5 +1,5 @@
 lint:
-	black --check
+	black --check alexflow/ tests/
 	flake8 alexflow/ tests/
 
 test:

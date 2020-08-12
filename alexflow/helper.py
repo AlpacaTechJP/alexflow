@@ -1,8 +1,8 @@
-from typing import List, Dict, Optional, Union
 from dataclasses import replace
+from typing import List, Optional, Union
 
 from .adapters.storage import Storage, NotFound
-from .core import Output, Task, InOut, Workflow, DynamicTask, AbstractTask
+from .core import Output, Task, InOut, DynamicTask, AbstractTask
 
 
 def assign_storage_to_output(output: InOut, storage: Storage):
@@ -109,4 +109,3 @@ def load_output(output: Output, storage: Storage):
 def exists_output(output: Output, storage: Storage) -> bool:
     output = assign_storage_to_output(output, storage)
     return output.exists()
-

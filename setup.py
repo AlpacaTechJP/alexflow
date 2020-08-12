@@ -16,7 +16,7 @@ setup(
     install_requires=[
         "pandas",
         "numpy",
-        "dataclass-serializer",
+        "dataclass-serializer>=1.3.1",
         "multiprocess",
         "joblib",
         "cached-property",

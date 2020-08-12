@@ -1,5 +1,6 @@
 from alexflow.core import Task, BinaryOutput, Output, DynamicTask
 from dataclasses import dataclass
+from dataclass_serializer import no_default, NoDefaultVar
 
 
 @dataclass(frozen=True)
@@ -15,7 +16,7 @@ class Task1(Task):
 
 @dataclass(frozen=True)
 class Task2(Task):
-    parent: Output
+    parent: NoDefaultVar[Output] = no_default
     name: str = "task2"
 
     def input(self):
@@ -30,8 +31,8 @@ class Task2(Task):
 
 @dataclass(frozen=True)
 class WriteValue(Task):
-    value_to_write: str
-    target: Output
+    value_to_write: NoDefaultVar[str] = no_default
+    target: NoDefaultVar[Output] = no_default
 
     def output(self):
         return self.target
@@ -42,7 +43,7 @@ class WriteValue(Task):
 
 @dataclass(frozen=True)
 class DynamicTask1(DynamicTask):
-    parent: Output
+    parent: NoDefaultVar[Output] = no_default
 
     def input(self):
         return self.parent

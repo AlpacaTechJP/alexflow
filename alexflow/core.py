@@ -1,11 +1,12 @@
+from abc import abstractmethod
+from dataclasses import dataclass, field, fields
+from typing import Union, List, Optional, Dict, Type, Tuple, TypeVar, Set
+
 import hashlib
 import json
 import shutil
 import types
-from abc import abstractmethod
-from dataclasses import dataclass, field, fields
 from datetime import datetime
-from typing import Union, List, Optional, Dict, Type, Tuple, TypeVar
 
 import joblib
 from cached_property import cached_property
@@ -104,6 +105,10 @@ class AbstractTask(Serializable):
         """
         return _create_task_id(self)
 
+    @property
+    def tags(self) -> Set[str]:
+        return set()
+
     def build_output(
         self, output_class: Type[T], key: str, storage: Optional[Storage] = None,
     ) -> T:
@@ -115,11 +120,7 @@ class AbstractTask(Serializable):
 
 @dataclass(frozen=True)
 class Task(AbstractTask):
-    resource_spec: Optional[ResourceSpec] = field(repr=False)
-
-    def __init__(self,  resource_spec: Optional[ResourceSpec] = None):
-        object.__setattr__(self, 'resource_spec', resource_spec)
-
+    resource_spec: Optional[ResourceSpec] = field(default=None, repr=False)
 
     def run(self, input: InOut, output: InOut):
         """
@@ -185,8 +186,6 @@ class WrapperTask(AbstractTask):
 @dataclass(frozen=True)
 class Output(Serializable):
     """
-    Attrs:
-        metadata: Additional character of the output have no effect to the identity of the output
     """
 
     src_task: AbstractTask

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Optional
 from collections import OrderedDict
 
 import enum
@@ -54,10 +54,46 @@ class Message:
     content: Dict
 
 
-def _execute(workflow: Workflow, workers: int):  # noqa
+class ResourceManager:
+    def __init__(self, resources: Dict[str, int]):
+        self._resources: Dict[str, int] = resources
+        self._running: Dict[str, int] = {}
+
+    def add(self, task: Task):
+        for tag in task.tags:
+            self._running[tag] = self._running.get(tag, 0) + 1
+
+    def remove(self, task: Task):
+        for tag in task.tags:
+            self._running[tag] = self._running.get(tag, 0) - 1
+            assert self._running[tag] >= 0
+
+    def is_runnable(self, task: Task):
+        out = []
+
+        for tag in task.tags:
+
+            if tag not in self._resources:
+                out.append(True)
+                continue
+
+            max_concurrency = self._resources[tag]
+
+            next_concurrency = self._running.get(tag, 0) + 1
+            print("next", next_concurrency)
+            out.append(next_concurrency <= max_concurrency)
+
+        print(self._running, all(out))
+
+        return all(out)
+
+
+def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # noqa
     buffer = 100
 
     manager = Manager()
+
+    resource_manager = ResourceManager(resources)
 
     q_set = QueueSet(manager)
 
@@ -90,8 +126,11 @@ def _execute(workflow: Workflow, workers: int):  # noqa
 
                         if msg.kind == Kind.DONE:
                             running.remove(msg.content["task"].task_id)
+                            resource_manager.remove(msg.content["task"])
                         elif msg.kind == Kind.GENERATED:
                             running.remove(msg.content["task"].task_id)
+                            resource_manager.remove(msg.content["task"])
+
                             new_tasks: Dict[str, Task] = msg.content["tasks"]
                             for task_id, task in new_tasks.items():
                                 if task_id not in running:
@@ -142,9 +181,14 @@ def _execute(workflow: Workflow, workers: int):  # noqa
                         next_tasks[task.task_id] = task
                         continue
 
+                    if not resource_manager.is_runnable(task):
+                        continue
+
                     q_set.q_in.put(Message(kind=Kind.RUN, content={"task": task}))
 
                     running.append(task.task_id)
+
+                    resource_manager.add(task)
 
                 tasks = next_tasks
 
@@ -315,7 +359,10 @@ class Worker:
 
 
 def run_job(
-    task: Union[Task, List[Task]], storage: Storage, n_jobs: int = 1,
+    task: Union[Task, List[Task]],
+    storage: Storage,
+    n_jobs: int = 1,
+    resources: Optional[Dict[str, int]] = None,
 ):
     """Run pipeline task through luigi.
     """
@@ -328,13 +375,18 @@ def run_job(
     run_workflow(
         Workflow(tasks={task.task_id: task for task in tasks}, storage=storage),
         n_jobs=n_jobs,
+        resources=resources,
     )
 
 
-def run_workflow(workflow: Workflow, n_jobs: int = 1):
+def run_workflow(
+    workflow: Workflow, n_jobs: int = 1, resources: Optional[Dict[str, int]] = None
+):
     logger.debug(f"start running alexflow_executor with workers = {n_jobs}")
 
     if n_jobs == 1:
         _sequential_execute(workflow, workers=1)
     else:
-        _execute(workflow, workers=n_jobs)
+        if resources is None:
+            resources = {}
+        _execute(workflow, workers=n_jobs, resources=resources)
