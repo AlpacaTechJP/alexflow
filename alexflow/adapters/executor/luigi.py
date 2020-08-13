@@ -4,9 +4,9 @@ from collections import Mapping
 
 from dataclass_serializer import deserialize
 
-from ..core import Task, DynamicTask, Workflow
-from ..helper import is_completed, run_task, generate_task
-from .storage import Storage
+from ...core import Task, DynamicTask, Workflow
+from ...helper import is_completed, run_task, generate_task
+from ..storage import Storage
 
 from logging import getLogger
 
