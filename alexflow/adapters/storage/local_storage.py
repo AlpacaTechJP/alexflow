@@ -1,4 +1,3 @@
-import errno
 import os
 import shutil
 import tempfile
@@ -17,6 +16,12 @@ logger = getLogger(__name__)
 
 @dataclass(frozen=True)
 class LocalStorage(Storage):
+    """Local file system based storage class.
+
+    Attrs:
+        base_path(str): Path to the directory used as local storage.
+    """
+
     base_path: str
 
     def list(self, path: Optional[str] = None) -> List["File"]:
@@ -44,7 +49,7 @@ class LocalStorage(Storage):
         return os.path.exists(file) and os.path.isfile(file)
 
     def makedirs(self, path, exist_ok: bool = False) -> None:
-        mkdir_p(self._namespaced_path(path))
+        os.makedirs(self._namespaced_path(path), exist_ok=exist_ok)
 
     def namespace(self, path: str) -> "LocalStorage":
         return LocalStorage(base_path=self._namespaced_path(path))
@@ -101,13 +106,3 @@ class LocalStorage(Storage):
                     "fall back to the original copy implementation"
                 )
         return super().copy(path, target_storage)
-
-
-def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise

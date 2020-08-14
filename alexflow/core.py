@@ -1,6 +1,16 @@
 from abc import abstractmethod
 from dataclasses import dataclass, field, fields
-from typing import Union, List, Optional, Dict, Type, Tuple, TypeVar, Set
+from typing import (
+    Union,
+    List,
+    Optional,
+    Dict,
+    Type,
+    Tuple,
+    TypeVar,
+    Set,
+    ContextManager,
+)
 
 import hashlib
 import json
@@ -25,10 +35,16 @@ InOut = Union[None, "Output", List["Output"], Tuple["Output", ...], Dict[str, "O
 class Storage(Serializable):
     @abstractmethod
     def list(self, path: Optional[str] = None) -> Union[List["File"]]:
+        """List all the files on the path
+
+        Note:
+            All the files under the path will be listed, recursively.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def remove(self, path: str) -> None:
+        """Remove file on path from storage"""
         raise NotImplementedError
 
     @abstractmethod
@@ -37,10 +53,13 @@ class Storage(Serializable):
 
     @abstractmethod
     def exists(self, path: str) -> bool:
+        """Check if path already exist in storage"""
         raise NotImplementedError
 
     @abstractmethod
     def namespace(self, path: str) -> "Storage":
+        """Return a namespaced Storage class.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -48,10 +67,17 @@ class Storage(Serializable):
         raise NotImplementedError
 
     @abstractmethod
-    def path(self, path: str, mode: str = "r"):
+    def path(self, path: str, mode: str = "r") -> ContextManager[str]:
+        """Return context with read/write-able path for the I/O operation.
+
+        We uses context manage the atomic write operation for a given path, and
+        all the Storage implementation should satisfy the same behavior.
+        """
         raise NotImplementedError
 
     def copy(self, path: str, target_storage: "Storage"):
+        """Copy a file from this storage to target_storage.
+        """
         with self.path(path, mode="r") as src_path:
             with target_storage.path(path, mode="w") as dst_path:
                 shutil.copy(src_path, dst_path)

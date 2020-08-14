@@ -12,6 +12,10 @@ class ReadOnlyAccess(StorageError):
 @dataclass(frozen=True)
 class CompositeStorage(Storage):
     """Composite Storage with primary read only strage and secondary read / write storage.
+
+    Attrs:
+        read_only: Storage class used as read only operation
+        read_write: Primary storage class used as read/write operation
     """
 
     read_only: Storage

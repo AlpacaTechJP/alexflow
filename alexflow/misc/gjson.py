@@ -1,12 +1,12 @@
 import gzip
 import json
+
 from datetime import date
+import os
 from os.path import dirname
 
 import numpy as np
 import pandas as pd
-
-from alexflow.misc.path import mkdir_p
 
 
 class Encoder(json.JSONEncoder):
@@ -30,7 +30,7 @@ class Encoder(json.JSONEncoder):
 
 
 def dump(obj, path):
-    mkdir_p(dirname(path))
+    os.makedirs(dirname(path), exist_ok=True)
     with gzip.open(path, "wb") as f:
         f.write(json.dumps(obj, cls=Encoder).encode("utf-8"))
 
