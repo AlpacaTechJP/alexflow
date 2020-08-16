@@ -8,7 +8,7 @@ from alexflow.testing.tasks import Task1, Task2, DynamicTask1, WriteValue
 
 def test_run_job():
 
-    task = Task2(resource_spec=None, parent=Task1(resource_spec=None).output())
+    task = Task2(parent=Task1().output())
 
     with tempfile.TemporaryDirectory() as dirname:
 
@@ -25,7 +25,7 @@ def test_run_job():
 
 def test_run_dynamic_task_job():
     dynamic = DynamicTask1(
-        parent=Task1(name="test-dynamic-task", resource_spec=None).output()
+        parent=Task1(name="test-dynamic-task").output()
     )
 
     # Case - case independently executed

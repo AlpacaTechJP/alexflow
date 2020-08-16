@@ -6,13 +6,20 @@ from setuptools import setup, find_packages
 setup(
     name="alexflow",
     version="1.0.0",
-    description="Workflow library built for compositional tasks",
+    description="ALEXFlow is a python workflow library built for reproducible complex workflow",
     license="MIT",
     author="Sho Yoshida",
     author_email="yoshiso@alpaca.ai",
     url="https://github.com/AlpacaDB/alexflow.git",
     keywords="",
     packages=find_packages(exclude=('tests',)),
+    python_requires='>=3.7',
+    classifiers=[
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+    ],
     install_requires=[
         "pandas",
         "numpy",
