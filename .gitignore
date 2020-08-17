@@ -13,3 +13,6 @@ __pycache__
 .mypy_cache
 .venv
 .coverage
+*.egg-info
+build
+dist

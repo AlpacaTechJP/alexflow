@@ -24,9 +24,7 @@ def test_run_job():
 
 
 def test_run_dynamic_task_job():
-    dynamic = DynamicTask1(
-        parent=Task1(name="test-dynamic-task").output()
-    )
+    dynamic = DynamicTask1(parent=Task1(name="test-dynamic-task").output())
 
     # Case - case independently executed
 
