@@ -120,6 +120,36 @@ def test_run_dynamic_task_job(n_jobs, storage):
     assert is_completed(dynamic, storage)
 
 
+@dataclass(frozen=True)
+class ComplexInputTask(Task):
+    def input(self):
+        return {
+            "value": Task1(name="task1").output(),
+            "array": [Task1(name="task2").output()],
+            "dict": {"task3": Task1(name="task3").output(),},
+        }
+
+    def output(self):
+        return self.build_output(BinaryOutput, key="output.pkl")
+
+    def run(self, input, output):
+
+        assert input["value"].load()["name"] == "task1"
+        assert input["array"][0].load()["name"] == "task2"
+
+        assert input["dict"]["task3"].load()["name"] == "task3"
+
+        output.store("value")
+
+
+def test_complex_input_task(storage):
+    task = ComplexInputTask()
+
+    run_job(task, storage, n_jobs=1)
+
+    assert is_completed(task, storage)
+
+
 def _flush(storage: LocalStorage):
     for item in storage.list():
         storage.remove(item.path)
