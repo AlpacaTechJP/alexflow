@@ -1,4 +1,3 @@
-from functools import reduce
 from typing import List, Optional, Union
 
 from .adapters.storage import Storage, NotFound
