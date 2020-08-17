@@ -5,7 +5,6 @@ from .core import Output, Task, InOut, DynamicTask, AbstractTask
 
 
 def assign_storage_to_output(output: InOut, storage: Storage) -> InOut:
-    print("out", output)
     if isinstance(output, Output):
         output = output.assign_storage(storage)
     elif isinstance(output, dict):

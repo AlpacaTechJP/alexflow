@@ -126,13 +126,19 @@ class ComplexInputTask(Task):
         return {
             "value": Task1(name="task1").output(),
             "array": [Task1(name="task2").output()],
-            "dict": {"task3": Task1(name="task4").output(),},
+            "dict": {"task3": Task1(name="task3").output(),},
         }
 
     def output(self):
         return self.build_output(BinaryOutput, key="output.pkl")
 
     def run(self, input, output):
+
+        assert input["value"].load()["name"] == "task1"
+        assert input["array"][0].load()["name"] == "task2"
+
+        assert input["dict"]["task3"].load()["name"] == "task3"
+
         output.store("value")
 
 
