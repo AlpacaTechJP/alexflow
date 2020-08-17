@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
 from typing import (
     Union,
     List,
@@ -29,7 +29,7 @@ from alexflow.misc import gjson
 
 T = TypeVar("T")
 
-InOut = Union[None, "Output", List["Output"], Tuple["Output", ...], Dict[str, "Output"]]
+InOut = Union[None, "Output", List["Output"], Tuple["Output", ...], Dict[str, "InOut"]]
 
 
 class Storage(Serializable):
@@ -194,9 +194,6 @@ class WrapperTask(AbstractTask):
     def task_id(self) -> str:
         return self.task.task_id
 
-    def complete(self) -> bool:
-        return self.task.complete()
-
     def run(self):
         return self.task.run()
 
@@ -229,6 +226,9 @@ class Output(Serializable):
 
     def store(self, data):
         raise NotImplementedError
+
+    def assign_storage(self, storage: Storage) -> "Output":
+        return replace(self, storage=storage)
 
     def exists(self) -> bool:
         assert self.storage is not None, f"storage must be given for {self.key}"
