@@ -93,6 +93,14 @@ class File(Serializable):
     path: str
 
 
+class StorageError(Exception):
+    pass
+
+
+class NotFound(StorageError):
+    pass
+
+
 @dataclass(frozen=True)
 class ResourceSpec(Serializable):
     """Defines the machine resources to execute the task.

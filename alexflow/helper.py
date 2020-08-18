@@ -1,7 +1,6 @@
 from typing import List, Optional, Union
 
-from .adapters.storage import Storage, NotFound
-from .core import Output, Task, InOut, DynamicTask, AbstractTask
+from .core import Output, Task, InOut, DynamicTask, AbstractTask, Storage, NotFound
 
 
 def assign_storage_to_output(output: InOut, storage: Storage) -> InOut:
