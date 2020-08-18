@@ -368,7 +368,7 @@ def _create_task_id_spec_v1(obj):
     )
 
 
-def _create_task_id_spec_v0(obj):
+def _create_task_id_spec_v0(obj):  # noqa: C901
     """Calculates the unique_id for the Task.
 
     Notes:
