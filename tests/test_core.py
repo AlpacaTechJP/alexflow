@@ -28,3 +28,11 @@ def test_task_id_for_no_default():
     task_id_optional = MyTask().task_id
 
     assert task_id == task_id_optional
+
+    @dataclass(frozen=True)
+    class MyTask(Task):
+        pass
+
+    task_id_no_args = MyTask().task_id
+
+    assert task_id == task_id_no_args
