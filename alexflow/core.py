@@ -23,6 +23,7 @@ from cached_property import cached_property
 from dataclass_serializer import (
     Serializable,
     deserialize,
+    no_default,
 )
 
 from alexflow.misc import gjson
@@ -336,7 +337,9 @@ def _create_task_id(obj):
         # calculation of unique id. This is for the keep the backward compatibility of
         # unique_id after adding new field into the class. We expect for new field to have None
         # by default.
-        if (value_map[_field.name] is None) and (_field.default is None):
+        if (value_map[_field.name] is None) and (
+            _field.default is None or _field.default is no_default
+        ):
             continue
 
         if isinstance(value, AbstractTask):
