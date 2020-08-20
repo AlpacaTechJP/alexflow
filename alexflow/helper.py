@@ -1,7 +1,15 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict
 
-from .adapters.storage import Storage, NotFound
-from .core import Output, Task, InOut, DynamicTask, AbstractTask
+from .core import (
+    Output,
+    Task,
+    InOut,
+    DynamicTask,
+    AbstractTask,
+    Storage,
+    NotFound,
+    Workflow,
+)
 
 
 def assign_storage_to_output(output: InOut, storage: Storage) -> InOut:
@@ -113,3 +121,40 @@ def load_output(output: Output, storage: Storage):
 def exists_output(output: Output, storage: Storage) -> bool:
     output = assign_storage_to_output(output, storage)
     return output.exists()
+
+
+def workflow_to_task_map(workflow: Workflow) -> Dict[str, dict]:
+    """Transform workflow to task dictionary with task_id key.
+    """
+
+    task_map: Dict[str, dict] = {}
+
+    tasks = {task.task_id: task for task in workflow.tasks.values()}
+
+    while len(tasks) > 0:
+
+        next_tasks: Dict[str, Task] = {}
+
+        for task_id, task in tasks.items():
+
+            if task_id in task_map:
+                continue
+
+            inputs = flatten(task.input())
+
+            dependent_tasks = {inp.src_task.task_id: inp.src_task for inp in inputs}
+
+            dependent_task_ids = list(dependent_tasks.keys())
+
+            task_map[task_id] = {
+                "task_id": task_id,
+                "dependent_task_ids": dependent_task_ids,
+                "task": task,
+            }
+
+            for dependent_task_id, task in dependent_tasks.items():
+                next_tasks[dependent_task_id] = task
+
+        tasks = next_tasks
+
+    return task_map

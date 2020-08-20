@@ -7,7 +7,7 @@ import pytest
 import time
 
 from alexflow import Task, BinaryOutput
-from alexflow.adapters.storage import LocalStorage
+from alexflow.adapters.storage.local_storage import LocalStorage
 from alexflow.adapters.executor.alexflow import run_job
 from alexflow.helper import is_completed, generate_task
 from alexflow.testing.tasks import Task1, Task2, DynamicTask1, WriteValue

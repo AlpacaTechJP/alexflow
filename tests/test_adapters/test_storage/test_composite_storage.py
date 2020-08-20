@@ -1,12 +1,14 @@
 import pytest
 import tempfile
 
-from alexflow.adapters.storage import (
+from alexflow.adapters.storage.local_storage import (
     LocalStorage,
     NotFound,
+    File,
+)
+from alexflow.adapters.storage.composite_storage import (
     CompositeStorage,
     ReadOnlyAccess,
-    File,
 )
 
 

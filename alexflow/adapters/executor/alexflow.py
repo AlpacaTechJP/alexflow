@@ -12,9 +12,8 @@ import queue
 import traceback
 import time
 
-from ...core import Task, DynamicTask, Workflow, AbstractTask
+from ...core import Task, DynamicTask, Workflow, AbstractTask, Storage
 from ...helper import is_completed, run_task, generate_task, exists_output
-from ..storage import Storage
 
 from ...helper import flatten
 

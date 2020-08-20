@@ -1,14 +1,6 @@
 # flake8: noqa
 import shutil
-from ...core import Storage, Dir, File
-
-
-class StorageError(Exception):
-    pass
-
-
-class NotFound(StorageError):
-    pass
+from ...core import Storage, Dir, File, StorageError, NotFound
 
 
 def copy_file(file: File, src: Storage, dst: Storage, path=None):

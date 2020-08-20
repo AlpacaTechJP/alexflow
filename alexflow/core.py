@@ -20,10 +20,7 @@ from datetime import datetime
 
 import joblib
 from cached_property import cached_property
-from dataclass_serializer import (
-    Serializable,
-    deserialize,
-)
+from dataclass_serializer import Serializable, deserialize, no_default, NoDefaultVar
 
 from alexflow.misc import gjson
 
@@ -93,6 +90,14 @@ class File(Serializable):
     path: str
 
 
+class StorageError(Exception):
+    pass
+
+
+class NotFound(StorageError):
+    pass
+
+
 @dataclass(frozen=True)
 class ResourceSpec(Serializable):
     """Defines the machine resources to execute the task.
@@ -110,6 +115,8 @@ class ResourceSpec(Serializable):
 
 @dataclass(frozen=True)
 class AbstractTask(Serializable):
+    _task_spec: Optional[str] = field(default="1.0.0", compare=False, repr=False)
+
     def input(self) -> InOut:
         """Defines the dependent output items for the task.
 
@@ -132,10 +139,15 @@ class AbstractTask(Serializable):
     def task_id(self) -> str:
         """Unique id associated to the task.
         """
-        return _create_task_id(self)
+        return _create_task_id(self, spec=self._task_spec)
 
     @property
     def tags(self) -> Set[str]:
+        """Set of strings identifies type of the tasks.
+
+        Tags are used to identify the type / group of tasks. It is used to control the concurrency of tasks per tag
+        and right now it is supported by alexflow executor.
+        """
         return set()
 
     def build_output(
@@ -149,7 +161,9 @@ class AbstractTask(Serializable):
 
 @dataclass(frozen=True)
 class Task(AbstractTask):
-    resource_spec: Optional[ResourceSpec] = field(default=None, repr=False)
+    resource_spec: Optional[ResourceSpec] = field(
+        default=None, repr=False, compare=False
+    )
 
     def run(self, input: InOut, output: InOut):
         """
@@ -162,12 +176,7 @@ class Task(AbstractTask):
 
 @dataclass(frozen=True)
 class DynamicTask(AbstractTask):
-    """
-    Concept:
-        We don't know how the workflow looks like, but at least we know its input / output.
-
-    Notes:
-        if output is not given, then it will use all the generated tasks to confirm if completed.
+    """Abstract Task class to create a dependency graph dynamically.
     """
 
     def generate(self, input: InOut, output: InOut) -> Union[Task, List[Task]]:
@@ -176,13 +185,16 @@ class DynamicTask(AbstractTask):
         Args:
             input : `Output` associated to the storage object to be used in this Task.
             output: `Output` associated to the storage object, used to store the output data.
+
+        Returns:
+            Tasks to be executed.
         """
         pass
 
 
 @dataclass(frozen=True)
 class WrapperTask(AbstractTask):
-    task: Task
+    task: NoDefaultVar[Task] = no_default
 
     def input(self) -> InOut:
         return self.task.input()
@@ -289,7 +301,15 @@ class Workflow(Serializable):
     artifacts: Dict[str, Output] = field(default=dict)
 
 
-def _create_task_id(obj):
+def _create_task_id(obj, spec: Optional[str]) -> str:
+
+    if spec is None:
+        return _create_task_id_spec_v0(obj)
+
+    return _create_task_id_spec_v1(obj)
+
+
+def _create_task_id_spec_v1(obj):
     """Calculates the unique_id for the Task.
 
     Notes:
@@ -302,10 +322,10 @@ def _create_task_id(obj):
     if not isinstance(obj, Serializable):
 
         if isinstance(obj, (list, tuple)):
-            return obj.__class__([_create_task_id(item) for item in obj])
+            return obj.__class__([_create_task_id_spec_v1(item) for item in obj])
 
         if isinstance(obj, dict):
-            return {key: _create_task_id(item) for key, item in obj.items()}
+            return {key: _create_task_id_spec_v1(item) for key, item in obj.items()}
 
         return _serialize(obj)
 
@@ -317,12 +337,82 @@ def _create_task_id(obj):
     value_map = obj.to_dict()
 
     for _field in fields(obj):
+        if _field.name == "_task_spec":
+            continue
 
         # If field.compare is false then it is not expected to be used for eq, gt.
         if not _field.compare:
             continue
 
         value = value_map[_field.name]
+
+        # If default value is None and actual value is None, then we'll skip them from the
+        # calculation of unique id. This is for the keep the backward compatibility of
+        # unique_id after adding new field into the class. We expect for new field to have None
+        # by default.
+        if value_map[_field.name] is None:
+            continue
+
+        if isinstance(value, AbstractTask):
+            # We expect Task and WrapperTask to have the same task_id, and Task#task_id and WrapperTask#task_id
+            # designed for that purpose. And here we need to use it instead of calculate it here. Otherwise additional
+            # wrapper layer's field information is also encoded and different task_id will be produced.
+            o[_field.name] = value.task_id
+            continue
+
+        o[_field.name] = _create_task_id_spec_v1(value)
+
+    basename = f"{obj.__class__.__module__}.{obj.__class__.__name__}"
+
+    return (
+        basename
+        + "."
+        + hashlib.sha1(json.dumps(o, sort_keys=True).encode("utf-8")).hexdigest()
+    )
+
+
+def _create_task_id_spec_v0(obj):  # noqa: C901
+    """Calculates the unique_id for the Task.
+
+    Notes:
+        As far as it response back the same unique_id, it is the same component
+        and have exact same behaviors.
+        We need to calculate dependent serializable's task_id recursively to ignore
+        field compare == False.
+    """
+    if not isinstance(obj, Serializable):
+
+        if isinstance(obj, (list, tuple)):
+            return obj.__class__([_create_task_id_spec_v0(item) for item in obj])
+
+        if isinstance(obj, dict):
+            return {key: _create_task_id_spec_v0(item) for key, item in obj.items()}
+
+        return _serialize(obj)
+
+    if isinstance(obj, Output):
+        return obj.output_id
+
+    o = {}
+
+    value_map = obj.to_dict()
+
+    for _field in fields(obj):
+        # This field introduced from version 1.0 task spec, so ignore it for ver0 task_id calculation.
+        if _field.name == "_task_spec":
+            continue
+
+        value = value_map[_field.name]
+
+        # At _task_spec < 1.0.0, resource_spec is marked compare=True, but migrated to compare=False for better
+        # representation.
+        if _field.name == "resource_spec":
+            o[_field.name] = _create_task_id_spec_v0(value)
+            continue
+
+        # If field.compare is false then it is not expected to be used for eq, gt.
+        if not _field.compare:
+            continue
 
         # If default value is None and actual value is None, then we'll skip them from the
         # calculation of unique id. This is for the keep the backward compatibility of
@@ -338,7 +428,7 @@ def _create_task_id(obj):
             o[_field.name] = value.task_id
             continue
 
-        o[_field.name] = _create_task_id(value)
+        o[_field.name] = _create_task_id_spec_v0(value)
 
     basename = f"{obj.__class__.__module__}.{obj.__class__.__name__}"
 
