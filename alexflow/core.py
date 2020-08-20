@@ -143,6 +143,11 @@ class AbstractTask(Serializable):
 
     @property
     def tags(self) -> Set[str]:
+        """Set of strings identifies type of the tasks.
+
+        Tags are used to identify the type / group of tasks. It is used to control the concurrency of tasks per tag
+        and right now it is supported by alexflow executor.
+        """
         return set()
 
     def build_output(
@@ -171,12 +176,7 @@ class Task(AbstractTask):
 
 @dataclass(frozen=True)
 class DynamicTask(AbstractTask):
-    """
-    Concept:
-        We don't know how the workflow looks like, but at least we know its input / output.
-
-    Notes:
-        if output is not given, then it will use all the generated tasks to confirm if completed.
+    """Abstract Task class to create a dependency graph dynamically.
     """
 
     def generate(self, input: InOut, output: InOut) -> Union[Task, List[Task]]:
@@ -185,6 +185,9 @@ class DynamicTask(AbstractTask):
         Args:
             input : `Output` associated to the storage object to be used in this Task.
             output: `Output` associated to the storage object, used to store the output data.
+
+        Returns:
+            Tasks to be executed.
         """
         pass
 
