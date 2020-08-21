@@ -192,12 +192,17 @@ class AbstractTask(Serializable):
         return set()
 
     def build_output(
-        self, output_class: Type[T_out], key: str, storage: Optional[Storage] = None,
+        self,
+        output_class: Type[T_out],
+        key: str,
+        storage: Optional[Storage] = None,
+        *args,
+        **kwargs,
     ) -> T_out:
         """Create the Output class with prefix of task_id.
         """
         key = self.task_id + "." + key
-        return output_class(src_task=self, key=key, storage=storage)
+        return output_class(src_task=self, key=key, storage=storage, *args, **kwargs)
 
 
 @dataclass(frozen=True)
@@ -255,10 +260,11 @@ class WrapperTask(AbstractTask):
         output_class: Type[T],
         key: str,
         storage: Optional[Storage] = None,
-        metadata: Optional[Dict] = None,
+        *args,
+        **kwargs,
     ) -> T:
         return self.task.build_output(
-            output_class=output_class, key=key, storage=storage, metadata=metadata,
+            output_class=output_class, key=key, storage=storage, *args, **kwargs,
         )
 
 
