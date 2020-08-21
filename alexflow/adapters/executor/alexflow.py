@@ -96,7 +96,7 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
 
     tasks = {task.task_id: task for task in workflow.tasks.values()}
 
-    running = []
+    running: List[str] = []
 
     try:
 

@@ -10,6 +10,7 @@ from typing import (
     TypeVar,
     Set,
     ContextManager,
+    Any,
 )
 
 import hashlib
@@ -26,7 +27,10 @@ from alexflow.misc import gjson
 
 T = TypeVar("T")
 
-InOut = Union[None, "Output", List["Output"], Tuple["Output", ...], Dict[str, "InOut"]]
+# Due to the support of recursive types, we could not give proper typing for InOut types but suppose to be
+# following type:
+#     InOut = Union[None, "Output", List["InOut"], Tuple["InOut", ...], Dict[str, InOut]]
+InOut = Union[None, "Output", List["Output"], Tuple["Output", ...], Dict[str, Any]]
 
 
 class Storage(Serializable):
@@ -99,6 +103,40 @@ class NotFound(StorageError):
 
 
 @dataclass(frozen=True)
+class Output(Serializable):
+    """
+    """
+
+    src_task: "AbstractTask"
+    key: str
+    storage: Optional[Storage] = field(
+        default=None, compare=False, repr=False,
+    )
+
+    @cached_property
+    def output_id(self) -> str:
+        return self.src_task.task_id + "." + self.key
+
+    def store(self, data):
+        raise NotImplementedError
+
+    def assign_storage(self, storage: Storage) -> "Output":
+        return replace(self, storage=storage)
+
+    def exists(self) -> bool:
+        assert self.storage is not None, f"storage must be given for {self.key}"
+        return self.storage.exists(self.key)
+
+    def remove(self):
+        assert self.storage is not None, f"storage must be given for {self.key}"
+        if self.storage.exists(self.key):
+            self.storage.remove(self.key)
+
+    def load(self):
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
 class ResourceSpec(Serializable):
     """Defines the machine resources to execute the task.
 
@@ -111,6 +149,9 @@ class ResourceSpec(Serializable):
     memory_requests: Optional[str] = None
     memory_limits: Optional[str] = None
     gpu: Optional[int] = None
+
+
+T_out = TypeVar("T_out", bound=Output)
 
 
 @dataclass(frozen=True)
@@ -151,8 +192,8 @@ class AbstractTask(Serializable):
         return set()
 
     def build_output(
-        self, output_class: Type[T], key: str, storage: Optional[Storage] = None,
-    ) -> T:
+        self, output_class: Type[T_out], key: str, storage: Optional[Storage] = None,
+    ) -> T_out:
         """Create the Output class with prefix of task_id.
         """
         key = self.task_id + "." + key
@@ -222,40 +263,6 @@ class WrapperTask(AbstractTask):
 
 
 @dataclass(frozen=True)
-class Output(Serializable):
-    """
-    """
-
-    src_task: AbstractTask
-    key: str
-    storage: Optional[Storage] = field(
-        default=None, compare=False, repr=False,
-    )
-
-    @cached_property
-    def output_id(self) -> str:
-        return self.src_task.task_id + "." + self.key
-
-    def store(self, data):
-        raise NotImplementedError
-
-    def assign_storage(self, storage: Storage) -> "Output":
-        return replace(self, storage=storage)
-
-    def exists(self) -> bool:
-        assert self.storage is not None, f"storage must be given for {self.key}"
-        return self.storage.exists(self.key)
-
-    def remove(self):
-        assert self.storage is not None, f"storage must be given for {self.key}"
-        if self.storage.exists(self.key):
-            self.storage.remove(self.key)
-
-    def load(self):
-        raise NotImplementedError
-
-
-@dataclass(frozen=True)
 class BinaryOutput(Output):
     def store(self, data):
         assert self.storage is not None, f"storage must be given for {self.key}"
@@ -298,7 +305,7 @@ class SerializableOutput(Output):
 class Workflow(Serializable):
     storage: Storage
     tasks: Dict[str, AbstractTask]
-    artifacts: Dict[str, Output] = field(default=dict)
+    artifacts: Dict[str, Output] = field(default_factory=dict)
 
 
 def _create_task_id(obj, spec: Optional[str]) -> str:

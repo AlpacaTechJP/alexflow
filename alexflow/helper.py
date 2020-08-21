@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, Dict
+from typing import List, Optional, Union, Dict, TypeVar
 
 from .core import (
     Output,
@@ -12,25 +12,28 @@ from .core import (
 )
 
 
-def assign_storage_to_output(output: InOut, storage: Storage) -> InOut:
+T_io = TypeVar("T_io", bound=InOut)
+
+
+def assign_storage_to_output(output: T_io, storage: Storage) -> T_io:
     if isinstance(output, Output):
-        output = output.assign_storage(storage)
+        return output.assign_storage(storage)
     elif isinstance(output, dict):
-        output = {
+        return {  # type: ignore
             key: assign_storage_to_output(value, storage)
             for key, value in output.items()
         }
     elif isinstance(output, (list, tuple)):
         # Case of namedtuple
         if hasattr(output, "_fields"):
-            return output.__class__(
-                **{
+            return output.__class__(  # type: ignore
+                **{  # type: ignore
                     key: assign_storage_to_output(value, storage)
-                    for key, value in zip(output._fields, output)
+                    for key, value in zip(output._fields, output)  # type: ignore
                 }
             )
-        output = output.__class__(
-            assign_storage_to_output(value, storage) for value in output
+        return output.__class__(  # type: ignore
+            assign_storage_to_output(value, storage) for value in output  # type: ignore
         )
     else:
         assert output is None, f"output value ({output}) must to be Output object"
