@@ -7,6 +7,7 @@ black
 cached-property
 numpy
 pandas
+mypy
 
 pytest
 pytest-cov

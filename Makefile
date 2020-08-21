@@ -1,6 +1,7 @@
 lint:
 	black --check alexflow/ tests/
 	flake8 alexflow/ tests/
+	mypy --ignore-missing-imports alexflow/
 
 test:
 	pytest --cov=alexflow --cov-report=term-missing tests/
