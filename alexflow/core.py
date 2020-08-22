@@ -196,13 +196,12 @@ class AbstractTask(Serializable):
         output_class: Type[T_out],
         key: str,
         storage: Optional[Storage] = None,
-        *args,
         **kwargs,
     ) -> T_out:
         """Create the Output class with prefix of task_id.
         """
         key = self.task_id + "." + key
-        return output_class(src_task=self, key=key, storage=storage, *args, **kwargs)
+        return output_class(src_task=self, key=key, storage=storage, **kwargs)  # type: ignore
 
 
 @dataclass(frozen=True)
