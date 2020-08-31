@@ -310,7 +310,17 @@ class SerializableOutput(Output):
 class Workflow(Serializable):
     storage: Storage
     tasks: Dict[str, AbstractTask]
-    artifacts: Dict[str, Output] = field(default_factory=dict)
+    artifacts: Dict[str, InOut] = field(default_factory=dict)
+
+    def to_task_list(self):
+        """List of all the unique dependent tasks in the workflow.
+        """
+        tasks = {task.task_id: task for task in self.tasks.values()}
+
+        for output in _flatten(self.artifacts):
+            tasks[output.src_task.task_id] = output.src_task
+
+        return list(tasks.values())
 
 
 def _create_task_id(obj, spec: Optional[str]) -> str:
@@ -459,3 +469,18 @@ def _serialize(x):
     if isinstance(x, datetime):
         return x.isoformat()
     return x
+
+
+def _flatten(inout: Optional[InOut]) -> List[Output]:
+    """Make inout into list of outputs
+    """
+    output_list: List[Output] = []
+    if inout is None:
+        pass
+    if isinstance(inout, (list, tuple)):
+        output_list += sum([_flatten(item) for item in inout], [])
+    elif isinstance(inout, dict):
+        output_list += sum([_flatten(item) for item in inout.values()], [])
+    elif isinstance(inout, Output):
+        output_list += [inout]
+    return output_list

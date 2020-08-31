@@ -9,6 +9,7 @@ from .core import (
     Storage,
     NotFound,
     Workflow,
+    _flatten,
 )
 
 
@@ -43,16 +44,7 @@ def assign_storage_to_output(output: T_io, storage: Storage) -> T_io:
 def flatten(inout: Optional[InOut]) -> List[Output]:
     """Make inout into list of outputs
     """
-    output_list: List[Output] = []
-    if inout is None:
-        pass
-    if isinstance(inout, (list, tuple)):
-        output_list += sum([flatten(item) for item in inout], [])
-    elif isinstance(inout, dict):
-        output_list += sum([flatten(item) for item in inout.values()], [])
-    elif isinstance(inout, Output):
-        output_list += [inout]
-    return output_list
+    return _flatten(inout)
 
 
 def is_completed(task: Task, storage: Storage) -> bool:

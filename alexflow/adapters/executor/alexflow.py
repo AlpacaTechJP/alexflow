@@ -94,7 +94,7 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
 
     q_set = QueueSet(manager)
 
-    tasks = {task.task_id: task for task in workflow.tasks.values()}
+    tasks = {task.task_id: task for task in workflow.to_task_list()}
 
     running: List[str] = []
 

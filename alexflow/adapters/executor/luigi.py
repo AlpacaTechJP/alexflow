@@ -38,7 +38,7 @@ def run_workflow(workflow: Workflow, n_jobs: int = 1):
     """Run workflow through luigi
     """
     run_job(
-        list(workflow.tasks.values()), storage=workflow.storage, n_jobs=n_jobs,
+        workflow.to_task_list(), storage=workflow.storage, n_jobs=n_jobs,
     )
 
 
