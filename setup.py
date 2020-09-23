@@ -32,6 +32,7 @@ setup(
     install_requires=[
         "pandas",
         "numpy",
+        "psutil",
         "dataclass-serializer>=1.3.1",
         "multiprocess",
         "joblib",
