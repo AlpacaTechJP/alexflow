@@ -8,10 +8,11 @@ import signal
 
 from multiprocess import Process, Manager, Queue
 
+import gc
 import queue
 import traceback
 import time
-
+import psutil
 from ...core import Task, DynamicTask, Workflow, AbstractTask, Storage
 from ...helper import is_completed, run_task, generate_task, exists_output
 
@@ -19,6 +20,9 @@ from ...helper import flatten
 
 
 from logging import getLogger
+
+
+MAX_MEMORY_LEAK_SIZE = int(3e8)
 
 
 logger = getLogger(__name__)
@@ -284,14 +288,26 @@ def _process_a_job(msg: Message, storage: Storage) -> Message:
 def jobfunc(q_set: QueueSet, storage: Storage):
     """Task execution process.
     """
-
+    pid = os.getpid()
     try:
+        memory_size = get_memory_usage(pid)
+
         # Completes every some completes to avoid the memory leaks.
         for _ in range(30):
+
             msg: Message = q_set.q_in.get()
             assert msg.kind == Kind.RUN
             try:
                 q_set.q_out.put(_process_a_job(msg, storage))
+
+                memory_size_after = get_memory_usage(pid)
+
+                if (memory_size_after - memory_size) > MAX_MEMORY_LEAK_SIZE:
+                    gc.collect()
+                    memory_size_after = get_memory_usage(pid)
+
+                    memory_size = memory_size_after
+
             except Exception as e:
                 trace_msg = traceback.format_exc()
                 q_set.q_err.put(
@@ -387,3 +403,7 @@ def run_workflow(
         if resources is None:
             resources = {}
         _execute(workflow, workers=n_jobs, resources=resources)
+
+
+def get_memory_usage(pid):
+    return psutil.Process(pid).memory_info().rss
