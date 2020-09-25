@@ -1,4 +1,4 @@
-from typing import Dict, Set, List
+from typing import Dict, Set, List, Tuple
 from collections import defaultdict, OrderedDict
 
 from alexflow.core import AbstractTask, Storage, Output
@@ -15,7 +15,7 @@ class ReferenceManager:
     """
 
     def __init__(self, tasks: Dict[str, AbstractTask], storage: Storage):
-        self._refcount: Dict[str, Set[str]] = _to_ref_map(tasks)
+        self._refcount, self._ephemeral_map = _to_ref_map(tasks)
         self._storage: Storage = storage
 
     def add(self, task: AbstractTask) -> None:
@@ -25,6 +25,10 @@ class ReferenceManager:
         for inp in inputs:
 
             self._refcount[inp.key].add(task.task_id)
+
+            self._ephemeral_map[inp.key] = (
+                self._ephemeral_map[inp.key] and inp.ephemeral
+            )
 
     def remove(self, task: AbstractTask):
         inputs = _uniq(flatten(task.input()))
@@ -36,7 +40,11 @@ class ReferenceManager:
             if len(self._refcount[inp.key]) > 0:
                 continue
 
-            if inp.ephemeral:
+            assert (
+                inp.key in self._ephemeral_map
+            ), f"Output(key={inp.key}) must be registered in reference count"
+
+            if self._ephemeral_map[inp.key]:
 
                 logger.debug(f"Purging Output(key={inp.key})")
 
@@ -48,12 +56,17 @@ def _uniq(items: List[Output]):
     return list(o.values())
 
 
-def _to_ref_map(tasks: Dict[str, AbstractTask]) -> Dict[str, Set[str]]:
+def _to_ref_map(
+    tasks: Dict[str, AbstractTask]
+) -> Tuple[Dict[str, Set[str]], Dict[str, bool]]:
     """Get reference count dictionary
     """
 
     # key = Output.key, value set of task_ids who uses the output
     ref: Dict[str, Set[str]] = defaultdict(set)
+
+    # key = Output.key, value where an output is all ephemeral or not.
+    ephemeral_map: Dict[str, bool] = defaultdict(lambda: True)
 
     while len(tasks) > 0:
 
@@ -65,6 +78,7 @@ def _to_ref_map(tasks: Dict[str, AbstractTask]) -> Dict[str, Set[str]]:
 
             for inp in inputs:
                 ref[inp.key].add(task_id)
+                ephemeral_map[inp.key] = ephemeral_map[inp.key] and inp.ephemeral
 
             dependent_tasks = {inp.src_task.task_id: inp.src_task for inp in inputs}
 
@@ -73,4 +87,4 @@ def _to_ref_map(tasks: Dict[str, AbstractTask]) -> Dict[str, Set[str]]:
 
         tasks = next_tasks
 
-    return ref
+    return ref, ephemeral_map
