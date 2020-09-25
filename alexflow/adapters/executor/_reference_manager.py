@@ -4,6 +4,11 @@ from collections import defaultdict
 from alexflow.core import AbstractTask, Storage
 from alexflow.helper import flatten
 
+from logging import getLogger
+
+
+logger = getLogger(__name__)
+
 
 class ReferenceManager:
     """Manages reference count of Output object and purge once all referenced tasks are resolved.
@@ -32,6 +37,8 @@ class ReferenceManager:
                 continue
 
             if inp.ephemeral:
+
+                logger.debug(f"Purging Output(key={inp.key})")
 
                 inp.assign_storage(self._storage).remove()
 
