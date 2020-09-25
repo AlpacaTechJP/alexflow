@@ -150,6 +150,33 @@ def test_complex_input_task(storage):
     assert is_completed(task, storage)
 
 
+@pytest.mark.parametrize("n_jobs", [1, 2])
+@pytest.mark.parametrize(
+    "task",
+    [
+        Task2(
+            parent=Task2(parent=Task1().output().as_ephemeral()).output().as_ephemeral()
+        ),
+        DynamicTask1(
+            parent=Task1(name="test-dynamic-task", resource_spec=None)
+            .output()
+            .as_ephemeral()
+        ),
+    ],
+)
+def test_with_ephemeral_output_task(task, n_jobs, storage):
+
+    run_job(task, storage, n_jobs=2)
+
+    assert is_completed(task, storage)
+
+    assert task.input().ephemeral
+
+    assert not is_completed(
+        task.input().src_task, storage
+    ), "ephemeral output is already removed automatically"
+
+
 def _flush(storage: LocalStorage):
     for item in storage.list():
         storage.remove(item.path)

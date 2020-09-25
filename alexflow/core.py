@@ -105,6 +105,8 @@ class NotFound(StorageError):
 @dataclass(frozen=True)
 class Output(Serializable):
     """
+    Attrs:
+        ephemeral: Boolean flag whether the Output object can be removed once all the referenced tasks are completed.
     """
 
     src_task: "AbstractTask"
@@ -112,6 +114,7 @@ class Output(Serializable):
     storage: Optional[Storage] = field(
         default=None, compare=False, repr=False,
     )
+    ephemeral: bool = field(default=False, compare=False, repr=False)
 
     @cached_property
     def output_id(self) -> str:
@@ -134,6 +137,9 @@ class Output(Serializable):
 
     def load(self):
         raise NotImplementedError
+
+    def as_ephemeral(self) -> "Output":
+        return replace(self, ephemeral=True)
 
 
 @dataclass(frozen=True)

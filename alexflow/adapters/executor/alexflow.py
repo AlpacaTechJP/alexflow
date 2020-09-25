@@ -17,6 +17,7 @@ from ...helper import is_completed, run_task, generate_task, exists_output
 
 from ...helper import flatten
 
+from ._reference_manager import ReferenceManager
 
 from logging import getLogger
 
@@ -90,11 +91,13 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
 
     manager = Manager()
 
-    resource_manager = ResourceManager(resources)
-
     q_set = QueueSet(manager)
 
     tasks = {task.task_id: task for task in workflow.to_task_list()}
+
+    resource_manager = ResourceManager(resources)
+
+    ref_manager = ReferenceManager(tasks=tasks, storage=workflow.storage)
 
     running: List[str] = []
 
@@ -124,6 +127,7 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
                         if msg.kind == Kind.DONE:
                             running.remove(msg.content["task"].task_id)
                             resource_manager.remove(msg.content["task"])
+                            ref_manager.remove(msg.content["task"])
                         elif msg.kind == Kind.GENERATED:
                             running.remove(msg.content["task"].task_id)
                             resource_manager.remove(msg.content["task"])
@@ -132,6 +136,10 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
                             for task_id, task in new_tasks.items():
                                 if task_id not in running:
                                     tasks[task_id] = task
+                                    ref_manager.add(task)
+
+                            ref_manager.remove(msg.content["task"])
+
                 except queue.Empty:
                     pass
 
@@ -201,6 +209,8 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
 def _sequential_execute(workflow: Workflow, workers: int):  # noqa
     tasks = {task.task_id: task for task in workflow.tasks.values()}
 
+    ref_manager = ReferenceManager(tasks=tasks, storage=workflow.storage)
+
     while len(tasks) > 0:
 
         next_tasks = {}
@@ -232,6 +242,7 @@ def _sequential_execute(workflow: Workflow, workers: int):  # noqa
             )
 
             if msg.kind == Kind.DONE:
+                ref_manager.remove(msg.content["task"])
                 continue
 
             if msg.kind == Kind.GENERATED:
@@ -240,6 +251,9 @@ def _sequential_execute(workflow: Workflow, workers: int):  # noqa
                 for task_id, new_task in new_tasks.items():
                     if task_id not in tasks:
                         next_tasks[task_id] = new_task
+                        ref_manager.add(new_task)
+
+                ref_manager.remove(msg.content["task"])
 
         tasks = next_tasks
 
