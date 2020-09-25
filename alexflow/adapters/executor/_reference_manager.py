@@ -37,22 +37,28 @@ class ReferenceManager:
 
             self._refcount[inp.key].remove(task.task_id)
 
-            if len(self._refcount[inp.key]) > 0:
-                continue
-
             _recursive_purge_if_ephemeral(
-                inp, storage=self._storage, ephemeral_map=self._ephemeral_map
+                inp,
+                storage=self._storage,
+                refcount=self._refcount,
+                ephemeral_map=self._ephemeral_map,
             )
 
 
 def _recursive_purge_if_ephemeral(
-    output: Output, storage: Storage, ephemeral_map: Dict[str, bool]
+    output: Output,
+    storage: Storage,
+    refcount: Dict[str, Set[str]],
+    ephemeral_map: Dict[str, bool],
 ):
     """Recursively purge the output who marked as ephemeral.
     """
     assert (
         output.key in ephemeral_map
     ), f"Output(key={output.key}) must be registered in reference count"
+
+    if len(refcount[output.key]) > 0:
+        return
 
     output = output.assign_storage(storage)
 
@@ -66,7 +72,7 @@ def _recursive_purge_if_ephemeral(
 
     for item in flatten(output.src_task.input()):
         _recursive_purge_if_ephemeral(
-            item, storage=storage, ephemeral_map=ephemeral_map
+            item, storage=storage, refcount=refcount, ephemeral_map=ephemeral_map
         )
 
 
