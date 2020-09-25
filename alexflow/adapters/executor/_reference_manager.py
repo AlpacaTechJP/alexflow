@@ -40,15 +40,34 @@ class ReferenceManager:
             if len(self._refcount[inp.key]) > 0:
                 continue
 
-            assert (
-                inp.key in self._ephemeral_map
-            ), f"Output(key={inp.key}) must be registered in reference count"
+            _recursive_purge_if_ephemeral(
+                inp, storage=self._storage, ephemeral_map=self._ephemeral_map
+            )
 
-            if self._ephemeral_map[inp.key]:
 
-                logger.debug(f"Purging Output(key={inp.key})")
+def _recursive_purge_if_ephemeral(
+    output: Output, storage: Storage, ephemeral_map: Dict[str, bool]
+):
+    """Recursively purge the output who marked as ephemeral.
+    """
+    assert (
+        output.key in ephemeral_map
+    ), f"Output(key={output.key}) must be registered in reference count"
 
-                inp.assign_storage(self._storage).remove()
+    output = output.assign_storage(storage)
+
+    # Case when sub-graph is already purged.
+    if not output.exists():
+        return
+
+    if ephemeral_map[output.key]:
+        logger.debug(f"Purging Output(key={output.key})")
+        output.remove()
+
+    for item in flatten(output.src_task.input()):
+        _recursive_purge_if_ephemeral(
+            item, storage=storage, ephemeral_map=ephemeral_map
+        )
 
 
 def _uniq(items: List[Output]):
