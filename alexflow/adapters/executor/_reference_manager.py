@@ -24,16 +24,16 @@ class ReferenceManager:
 
         for inp in inputs:
 
-            self._refcount[inp.output_id].add(task.task_id)
+            self._refcount[inp.key].add(task.task_id)
 
     def remove(self, task: AbstractTask):
         inputs = flatten(task.input())
 
         for inp in inputs:
 
-            self._refcount[inp.output_id].remove(task.task_id)
+            self._refcount[inp.key].remove(task.task_id)
 
-            if len(self._refcount[inp.output_id]) > 0:
+            if len(self._refcount[inp.key]) > 0:
                 continue
 
             if inp.ephemeral:
@@ -47,7 +47,7 @@ def _to_ref_map(tasks: Dict[str, AbstractTask]) -> Dict[str, Set[str]]:
     """Get reference count dictionary
     """
 
-    # key = output_id, value set of task_ids who uses the output
+    # key = Output.key, value set of task_ids who uses the output
     ref: Dict[str, Set[str]] = defaultdict(set)
 
     while len(tasks) > 0:
@@ -59,7 +59,7 @@ def _to_ref_map(tasks: Dict[str, AbstractTask]) -> Dict[str, Set[str]]:
             inputs = flatten(task.input())
 
             for inp in inputs:
-                ref[inp.output_id].add(task_id)
+                ref[inp.key].add(task_id)
 
             dependent_tasks = {inp.src_task.task_id: inp.src_task for inp in inputs}
 
