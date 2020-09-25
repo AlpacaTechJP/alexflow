@@ -1,7 +1,7 @@
-from typing import Dict, Set
-from collections import defaultdict
+from typing import Dict, Set, List
+from collections import defaultdict, OrderedDict
 
-from alexflow.core import AbstractTask, Storage
+from alexflow.core import AbstractTask, Storage, Output
 from alexflow.helper import flatten
 
 from logging import getLogger
@@ -20,14 +20,14 @@ class ReferenceManager:
 
     def add(self, task: AbstractTask) -> None:
         """Add new task to reference manager in case you have additional task with DynamicTask"""
-        inputs = flatten(task.output())
+        inputs = _uniq(flatten(task.output()))
 
         for inp in inputs:
 
             self._refcount[inp.key].add(task.task_id)
 
     def remove(self, task: AbstractTask):
-        inputs = flatten(task.input())
+        inputs = _uniq(flatten(task.input()))
 
         for inp in inputs:
 
@@ -41,6 +41,11 @@ class ReferenceManager:
                 logger.debug(f"Purging Output(key={inp.key})")
 
                 inp.assign_storage(self._storage).remove()
+
+
+def _uniq(items: List[Output]):
+    o = OrderedDict([(item.key, item) for item in items])
+    return list(o.values())
 
 
 def _to_ref_map(tasks: Dict[str, AbstractTask]) -> Dict[str, Set[str]]:
