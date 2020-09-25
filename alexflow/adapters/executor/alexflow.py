@@ -22,6 +22,14 @@ from ._reference_manager import ReferenceManager
 from logging import getLogger
 
 
+try:
+    from setproctitle import setproctitle
+except ImportError:
+
+    def setproctitle(name):
+        pass
+
+
 logger = getLogger(__name__)
 
 
@@ -298,14 +306,19 @@ def _process_a_job(msg: Message, storage: Storage) -> Message:
 def jobfunc(q_set: QueueSet, storage: Storage):
     """Task execution process.
     """
+    setproctitle("alexflow_executor")
 
     try:
         # Completes every some completes to avoid the memory leaks.
         for _ in range(30):
             msg: Message = q_set.q_in.get()
             assert msg.kind == Kind.RUN
+
+            setproctitle(f'alexflow_executor - {msg.content["task"].__repr__()}')
+
             try:
                 q_set.q_out.put(_process_a_job(msg, storage))
+                setproctitle("alexflow_executor")
             except Exception as e:
                 trace_msg = traceback.format_exc()
                 q_set.q_err.put(
