@@ -6,7 +6,7 @@ from alexflow.helper import flatten
 
 
 class ReferenceManager:
-    """Manages reference count of Output object and purge found none referenced output
+    """Manages reference count of Output object and purge once all referenced tasks are resolved.
     """
 
     def __init__(self, tasks: Dict[str, AbstractTask], storage: Storage):
@@ -14,6 +14,7 @@ class ReferenceManager:
         self._storage: Storage = storage
 
     def add(self, task: AbstractTask) -> None:
+        """Add new task to reference manager in case you have additional task with DynamicTask"""
         inputs = flatten(task.output())
 
         for inp in inputs:
@@ -21,7 +22,6 @@ class ReferenceManager:
             self._refcount[inp.output_id].add(task.task_id)
 
     def remove(self, task: AbstractTask):
-
         inputs = flatten(task.input())
 
         for inp in inputs:
