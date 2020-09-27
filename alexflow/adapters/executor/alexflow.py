@@ -95,7 +95,7 @@ class ResourceManager:
 
 
 def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # noqa
-    buffer = 100
+    buffer = 10
 
     manager = Manager()
 
@@ -167,13 +167,17 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
                     time.sleep(0.2)
                     continue
 
-                next_tasks = {}
+                next_tasks = OrderedDict()
 
                 for task in tasks.values():
                     if task.task_id in running:
                         continue
 
                     if is_completed(task, workflow.storage):
+                        continue
+
+                    if q_set.q_in.qsize() >= buffer:
+                        next_tasks[task.task_id] = task
                         continue
 
                     inputs = flatten(task.input())
