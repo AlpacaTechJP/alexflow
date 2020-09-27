@@ -33,10 +33,12 @@ class ReferenceManager:
     def remove(self, task: AbstractTask):
         inputs = _uniq(flatten(task.input()))
 
+        # Reduce reference count first to cover the case:
+        #     One input depends on the other in a same list
         for inp in inputs:
-
             self._refcount[inp.key].remove(task.task_id)
 
+        for inp in inputs:
             _recursive_purge_if_ephemeral(
                 inp,
                 storage=self._storage,
