@@ -17,8 +17,17 @@ from ...helper import is_completed, run_task, generate_task, exists_output
 
 from ...helper import flatten
 
+from ._reference_manager import ReferenceManager
 
 from logging import getLogger
+
+
+try:
+    from setproctitle import setproctitle
+except ImportError:
+
+    def setproctitle(name):
+        pass
 
 
 logger = getLogger(__name__)
@@ -86,15 +95,17 @@ class ResourceManager:
 
 
 def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # noqa
-    buffer = 100
+    buffer = 10
 
     manager = Manager()
-
-    resource_manager = ResourceManager(resources)
 
     q_set = QueueSet(manager)
 
     tasks = {task.task_id: task for task in workflow.to_task_list()}
+
+    resource_manager = ResourceManager(resources)
+
+    ref_manager = ReferenceManager(tasks=tasks, storage=workflow.storage)
 
     running: List[str] = []
 
@@ -124,6 +135,7 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
                         if msg.kind == Kind.DONE:
                             running.remove(msg.content["task"].task_id)
                             resource_manager.remove(msg.content["task"])
+                            ref_manager.remove(msg.content["task"])
                         elif msg.kind == Kind.GENERATED:
                             running.remove(msg.content["task"].task_id)
                             resource_manager.remove(msg.content["task"])
@@ -132,6 +144,10 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
                             for task_id, task in new_tasks.items():
                                 if task_id not in running:
                                     tasks[task_id] = task
+                                    ref_manager.add(task)
+
+                            ref_manager.remove(msg.content["task"])
+
                 except queue.Empty:
                     pass
 
@@ -151,13 +167,17 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
                     time.sleep(0.2)
                     continue
 
-                next_tasks = {}
+                next_tasks = OrderedDict()
 
                 for task in tasks.values():
                     if task.task_id in running:
                         continue
 
                     if is_completed(task, workflow.storage):
+                        continue
+
+                    if q_set.q_in.qsize() >= buffer:
+                        next_tasks[task.task_id] = task
                         continue
 
                     inputs = flatten(task.input())
@@ -201,6 +221,8 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
 def _sequential_execute(workflow: Workflow, workers: int):  # noqa
     tasks = {task.task_id: task for task in workflow.tasks.values()}
 
+    ref_manager = ReferenceManager(tasks=tasks, storage=workflow.storage)
+
     while len(tasks) > 0:
 
         next_tasks = {}
@@ -232,6 +254,7 @@ def _sequential_execute(workflow: Workflow, workers: int):  # noqa
             )
 
             if msg.kind == Kind.DONE:
+                ref_manager.remove(msg.content["task"])
                 continue
 
             if msg.kind == Kind.GENERATED:
@@ -240,6 +263,9 @@ def _sequential_execute(workflow: Workflow, workers: int):  # noqa
                 for task_id, new_task in new_tasks.items():
                     if task_id not in tasks:
                         next_tasks[task_id] = new_task
+                        ref_manager.add(new_task)
+
+                ref_manager.remove(msg.content["task"])
 
         tasks = next_tasks
 
@@ -284,14 +310,19 @@ def _process_a_job(msg: Message, storage: Storage) -> Message:
 def jobfunc(q_set: QueueSet, storage: Storage):
     """Task execution process.
     """
+    setproctitle("alexflow_executor")
 
     try:
         # Completes every some completes to avoid the memory leaks.
         for _ in range(30):
             msg: Message = q_set.q_in.get()
             assert msg.kind == Kind.RUN
+
+            setproctitle(f'alexflow_executor - {msg.content["task"].__repr__()}')
+
             try:
                 q_set.q_out.put(_process_a_job(msg, storage))
+                setproctitle("alexflow_executor")
             except Exception as e:
                 trace_msg = traceback.format_exc()
                 q_set.q_err.put(
