@@ -1,8 +1,8 @@
-from typing import Dict, Set, List, Tuple
+from typing import Dict, Set, List, Tuple, Optional
 from collections import defaultdict, OrderedDict
 
 from alexflow.core import AbstractTask, Storage, Output
-from alexflow.helper import flatten
+from alexflow.helper import flatten, is_completed
 
 from logging import getLogger
 
@@ -20,14 +20,19 @@ class ReferenceManager:
 
     def add(self, task: AbstractTask) -> None:
         """Add new task to reference manager in case you have additional task with DynamicTask"""
-        inputs = _uniq(flatten(task.output()))
 
-        for inp in inputs:
+        refcount, ephemeral_map = _to_ref_map(
+            {task.task_id: task}, storage=self._storage
+        )
 
-            self._refcount[inp.key].add(task.task_id)
+        for key, value in refcount.items():
 
-            self._ephemeral_map[inp.key] = (
-                self._ephemeral_map[inp.key] and inp.ephemeral
+            self._refcount[key].update(value)
+
+        for _ephemeral_key, _is_ephemeral in ephemeral_map.items():
+
+            self._ephemeral_map[_ephemeral_key] = (
+                self._ephemeral_map[_ephemeral_key] and _is_ephemeral
             )
 
     def remove(self, task: AbstractTask):
@@ -84,10 +89,15 @@ def _uniq(items: List[Output]):
 
 
 def _to_ref_map(
-    tasks: Dict[str, AbstractTask]
+    tasks: Dict[str, AbstractTask],
+    only_incomplete: bool = False,
+    storage: Optional[Storage] = None,
 ) -> Tuple[Dict[str, Set[str]], Dict[str, bool]]:
     """Get reference count dictionary
     """
+
+    if only_incomplete:
+        assert storage is not None, "storage must be given when only_incomplete = True"
 
     # key = Output.key, value set of task_ids who uses the output
     ref: Dict[str, Set[str]] = defaultdict(set)
@@ -100,6 +110,12 @@ def _to_ref_map(
         next_tasks: Dict[str, AbstractTask] = {}
 
         for task_id, task in tasks.items():
+
+            if only_incomplete:
+                assert isinstance(storage, Storage)
+
+                if is_completed(task, storage):
+                    continue
 
             inputs = flatten(task.input())
 
