@@ -47,7 +47,7 @@ def flatten(inout: Optional[InOut]) -> List[Output]:
     return _flatten(inout)
 
 
-def is_completed(task: Task, storage: Storage) -> bool:
+def is_completed(task: AbstractTask, storage: Storage) -> bool:
     """Respond the completion status of the task.
 
     Notes:
@@ -83,7 +83,7 @@ def is_completed(task: Task, storage: Storage) -> bool:
         return False
 
 
-def run_task(task: Task, storage: Storage):
+def run_task(task: AbstractTask, storage: Storage):
 
     input = assign_storage_to_output(task.input(), storage)
 

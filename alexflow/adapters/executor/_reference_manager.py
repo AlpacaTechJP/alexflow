@@ -29,9 +29,11 @@ class ReferenceManager:
 
             self._refcount[key].update(value)
 
-        for key, value in ephemeral_map.items():
+        for _ephemeral_key, _is_ephemeral in ephemeral_map.items():
 
-            self._ephemeral_map[key] = self._ephemeral_map[key] and value
+            self._ephemeral_map[_ephemeral_key] = (
+                self._ephemeral_map[_ephemeral_key] and _is_ephemeral
+            )
 
     def remove(self, task: AbstractTask):
         inputs = _uniq(flatten(task.input()))
@@ -110,6 +112,8 @@ def _to_ref_map(
         for task_id, task in tasks.items():
 
             if only_incomplete:
+                assert isinstance(storage, Storage)
+
                 if is_completed(task, storage):
                     continue
 
