@@ -5,6 +5,7 @@ from dataclass_serializer import no_default, NoDefaultVar
 import pytest
 
 import time
+from multiprocessing import get_context
 
 from alexflow import Task, BinaryOutput
 from alexflow.adapters.storage.local_storage import LocalStorage
@@ -63,7 +64,7 @@ class Tagged(Task):
         # With 1 concurrency, expected to have more than sequential time consumption.
         (1, 13.0, "gt"),
         # With 3 concurrency, at least less than 2 sequential time consumption.
-        (3, 13.0 / 3.0 * 2, "lt"),
+        (3, 13.0, "lt"),
     ],
 )
 def test_run_with_resources(concurrency, expect, comparator, storage):
@@ -181,3 +182,17 @@ def _flush(storage: LocalStorage):
     for item in storage.list():
         storage.remove(item.path)
     assert len(storage.list()) == 0
+
+
+@pytest.mark.parametrize("method", ["spawn", 'fork'])
+def test_run_with_context(method: str, storage):
+
+    task = Task2(resource_spec=None, parent=Task1(resource_spec=None).output())
+
+    assert not is_completed(task.input().src_task, storage)
+    assert not is_completed(task, storage)
+
+    run_job(task, storage, n_jobs=2, context=get_context(method))
+
+    assert is_completed(task.input().src_task, storage)
+    assert is_completed(task, storage)
