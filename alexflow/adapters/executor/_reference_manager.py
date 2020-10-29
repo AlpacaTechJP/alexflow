@@ -41,7 +41,8 @@ class ReferenceManager:
         # Reduce reference count first to cover the case:
         #     One input depends on the other in a same list
         for inp in inputs:
-            self._refcount[inp.key].remove(task.task_id)
+            for key in inp.physical_key_list():
+                self._refcount[key].remove(task.task_id)
 
         for inp in inputs:
             _recursive_purge_if_ephemeral(
@@ -60,9 +61,11 @@ def _recursive_purge_if_ephemeral(
 ):
     """Recursively purge the output who marked as ephemeral.
     """
-    assert (
-        output.key in ephemeral_map
-    ), f"Output(key={output.key}) must be registered in reference count"
+
+    for key in output.physical_key_list():
+        assert (
+            key in ephemeral_map
+        ), f"Output(key={key}) must be registered in reference count"
 
     if len(refcount[output.key]) > 0:
         return
@@ -73,7 +76,9 @@ def _recursive_purge_if_ephemeral(
     if not output.exists():
         return
 
-    if ephemeral_map[output.key]:
+    if all([
+        ephemeral_map[key] for key in output.physical_key_list()
+    ]):
         logger.debug(f"Purging Output(key={output.key})")
         output.remove()
 
@@ -120,8 +125,10 @@ def _to_ref_map(
             inputs = flatten(task.input())
 
             for inp in inputs:
-                ref[inp.key].add(task_id)
-                ephemeral_map[inp.key] = ephemeral_map[inp.key] and inp.ephemeral
+
+                for key in inp.physical_key_list():
+                    ref[key].add(task_id)
+                    ephemeral_map[key] = ephemeral_map[key] and inp.ephemeral
 
             dependent_tasks = {inp.src_task.task_id: inp.src_task for inp in inputs}
 

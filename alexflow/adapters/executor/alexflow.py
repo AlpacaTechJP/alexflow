@@ -103,7 +103,7 @@ def _execute(
 ):  # noqa
 
     if context is None:
-        context = mp.get_context("spawn")
+        context = mp.get_context()
 
     buffer = 10
 

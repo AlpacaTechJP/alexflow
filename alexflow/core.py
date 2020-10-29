@@ -141,6 +141,14 @@ class Output(Serializable):
     def as_ephemeral(self) -> "Output":
         return replace(self, ephemeral=True)
 
+    def physical_key_list(self) -> List[str]:
+        """List of output keys associated to an Output.
+
+        For some cases, you want to create a abstract output class which depends on more than 1
+        output objects. For those cases, this function is used to manages the dependency of real
+        inputs to the tasks.
+        """
+        return [self.key]
 
 @dataclass(frozen=True)
 class ResourceSpec(Serializable):

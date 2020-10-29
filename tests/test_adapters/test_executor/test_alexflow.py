@@ -64,7 +64,7 @@ class Tagged(Task):
         # With 1 concurrency, expected to have more than sequential time consumption.
         (1, 13.0, "gt"),
         # With 3 concurrency, at least less than 2 sequential time consumption.
-        (3, 13.0 / 3.0 * 2, "lt"),
+        (3, 13.0, "lt"),
     ],
 )
 def test_run_with_resources(concurrency, expect, comparator, storage):
