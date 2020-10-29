@@ -6,7 +6,8 @@ import enum
 import os
 import signal
 
-from multiprocess import Process, Manager, Queue
+import multiprocess as mp
+from multiprocess.context import BaseContext
 
 import queue
 import traceback
@@ -38,11 +39,11 @@ class Termination(Exception):
 
 
 class QueueSet:
-    q_in: Queue
-    q_out: Queue
-    q_err: Queue
+    q_in: mp.Queue
+    q_out: mp.Queue
+    q_err: mp.Queue
 
-    def __init__(self, manager: Manager):
+    def __init__(self, manager: mp.Manager):
         self.q_in = manager.Queue()
         self.q_out = manager.Queue()
         self.q_err = manager.Queue()
@@ -94,10 +95,19 @@ class ResourceManager:
         return all(out)
 
 
-def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # noqa
+def _execute(
+    workflow: Workflow,
+    workers: int,
+    resources: Dict[str, int],
+    context: Optional[BaseContext] = None,
+):  # noqa
+
+    if context is None:
+        context = mp.get_context("spawn")
+
     buffer = 10
 
-    manager = Manager()
+    manager = context.Manager()
 
     q_set = QueueSet(manager)
 
@@ -114,7 +124,7 @@ def _execute(workflow: Workflow, workers: int, resources: Dict[str, int]):  # no
         # started workers
         ws: List[Worker] = []
         for _ in range(workers):
-            w = Worker(q_set, workflow.storage)
+            w = Worker(q_set, workflow.storage, context)
             w.run()
             ws.append(w)
 
@@ -335,21 +345,21 @@ def jobfunc(q_set: QueueSet, storage: Storage):
                         },
                     )
                 )
-
     except KeyboardInterrupt:
         return
 
 
-def procgen(q_set: QueueSet, storage: Storage):
+def procgen(q_set: QueueSet, storage: Storage, context: BaseContext):
     """Task generation process manager.
 
     Keep generate task execution process, with periodic process termination
     to avoid memory leaks.
     """
+    sub_process: Optional[mp.Process] = None
 
     try:
         while True:
-            sub_process = Process(target=jobfunc, args=(q_set, storage))
+            sub_process = context.Process(target=jobfunc, args=(q_set, storage))
             sub_process.start()
             sub_process.join()
 
@@ -362,19 +372,23 @@ def procgen(q_set: QueueSet, storage: Storage):
                 )
 
     except KeyboardInterrupt:
-        if sub_process.is_alive():
-            os.kill(sub_process.pid, signal.SIGINT)
+        if sub_process is not None and sub_process.is_alive():
+            sub_process.kill()
+            sub_process.join()
 
 
 class Worker:
-    def __init__(self, q_set: QueueSet, storage: Storage):
+    def __init__(self, q_set: QueueSet, storage: Storage, context: BaseContext):
         self.q_set = q_set
         self.storage = storage
         self.process = None
+        self.context = context
 
     def run(self):
 
-        self.process = Process(target=procgen, args=(self.q_set, self.storage))
+        self.process = self.context.Process(
+            target=procgen, args=(self.q_set, self.storage, self.context)
+        )
 
         self.process.start()
 
@@ -391,6 +405,7 @@ def run_job(
     storage: Storage,
     n_jobs: int = 1,
     resources: Optional[Dict[str, int]] = None,
+    context: Optional[BaseContext] = None,
 ):
     """Run pipeline task through luigi.
     """
@@ -404,11 +419,15 @@ def run_job(
         Workflow(tasks={task.task_id: task for task in tasks}, storage=storage),
         n_jobs=n_jobs,
         resources=resources,
+        context=context,
     )
 
 
 def run_workflow(
-    workflow: Workflow, n_jobs: int = 1, resources: Optional[Dict[str, int]] = None
+    workflow: Workflow,
+    n_jobs: int = 1,
+    resources: Optional[Dict[str, int]] = None,
+    context: Optional[BaseContext] = None,
 ):
     logger.debug(f"start running alexflow_executor with workers = {n_jobs}")
 
@@ -417,4 +436,4 @@ def run_workflow(
     else:
         if resources is None:
             resources = {}
-        _execute(workflow, workers=n_jobs, resources=resources)
+        _execute(workflow, workers=n_jobs, resources=resources, context=context)
