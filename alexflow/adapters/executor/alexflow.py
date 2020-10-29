@@ -95,12 +95,12 @@ class ResourceManager:
         return all(out)
 
 
-def _execute(
+def _execute(  # noqa
     workflow: Workflow,
     workers: int,
     resources: Dict[str, int],
     context: Optional[BaseContext] = None,
-):  # noqa
+):
 
     if context is None:
         context = mp.get_context()
