@@ -76,9 +76,7 @@ def _recursive_purge_if_ephemeral(
     if not output.exists():
         return
 
-    if all([
-        ephemeral_map[key] for key in output.physical_key_list()
-    ]):
+    if all([ephemeral_map[key] for key in output.physical_key_list()]):
         logger.debug(f"Purging Output(key={output.key})")
         output.remove()
 

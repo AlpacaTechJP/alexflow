@@ -184,7 +184,7 @@ def _flush(storage: LocalStorage):
     assert len(storage.list()) == 0
 
 
-@pytest.mark.parametrize("method", ["spawn", 'fork'])
+@pytest.mark.parametrize("method", ["spawn", "fork"])
 def test_run_with_context(method: str, storage):
 
     task = Task2(resource_spec=None, parent=Task1(resource_spec=None).output())

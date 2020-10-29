@@ -150,6 +150,7 @@ class Output(Serializable):
         """
         return [self.key]
 
+
 @dataclass(frozen=True)
 class ResourceSpec(Serializable):
     """Defines the machine resources to execute the task.
